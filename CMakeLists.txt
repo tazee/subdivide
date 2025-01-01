@@ -49,6 +49,7 @@ target_include_directories(lxsdk
 
 add_library(subdivide
     SHARED
+        "source/command.cpp"
         "source/meshop.cpp"
         "source/initialize.cpp"
         "source/subdivide.cpp"
@@ -88,6 +89,7 @@ target_compile_options(subdivide
 )
 
 find_package(OpenGL REQUIRED)
+#find_package(GLEW REQUIRED)
 
 # Set your OpenSubdiv libraray
 target_link_libraries(subdivide
@@ -96,6 +98,7 @@ target_link_libraries(subdivide
     PRIVATE
         osdCPU osdGPU
         OpenGL::GL
+#        GLEW::glew_s
 )
 
 # Install plugins and configs into kit directry

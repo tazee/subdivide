@@ -270,6 +270,8 @@ typedef struct
     int                npols;           // number of polygon
     int                polyVertCounts;  // number of vertex of polygons
     int                faceVertCounts;  // number of subdivided face
+    int                ntris;           // number of triangle for Loop scheme
+    int                triVertCounts;   // number of vertex of triangles for Loop scheme
 } MeshBinning;
 
 class PolygonMeshBinVisitor : public CLxImpl_AbstractVisitor
@@ -285,6 +287,8 @@ public:
     {
         m_bin.npols          = 0;
         m_bin.polyVertCounts = 0;
+        m_bin.ntris          = 0;
+        m_bin.triVertCounts  = 0;
     }
 
     bool TestPolygon(CLxUser_Polygon& poly)
@@ -311,6 +315,8 @@ public:
             unsigned int count;
             m_upoly.VertexCount(&count);
             m_bin.polyVertCounts += count;
+            m_bin.ntris += count - 2;
+            m_bin.triVertCounts += (count - 2) * 3;
         }
         return LXe_OK;
     }

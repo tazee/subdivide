@@ -86,7 +86,7 @@ public:
         };
 
         dyna_Add(ARGs_MESHOP_LEVEL, LXsTYPE_INTEGER);
-        attr_SetInt(ARGi_MESHOP_LEVEL, 3);
+        attr_SetInt(ARGi_MESHOP_LEVEL, 2);
     
         dyna_Add(ARGs_MESHOP_SCHEME, LXsTYPE_INTEGER);
         dyna_SetHint(ARGi_MESHOP_SCHEME, subdivide_scheme);

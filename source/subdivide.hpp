@@ -71,11 +71,14 @@ public:
     Sdc::Options::CreasingMethod           m_crease;
     Sdc::Options::TriangleSubdivision      m_triangle;
 
+    std::vector<float> m_position;  // subdivided positions
+
 private:
     bool SetupCages();
     bool CreateSubdivPoints(std::vector<LXtPointID>& points);
     bool CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
     int  GetCagePolygon(int face, CLxUser_Polygon& upoly);
+    void RemoveSourcePolygons();
 
     Far::TopologyRefiner* CreateTopologyRefiner();
     Osd::GLMeshInterface* CreateMeshInterface (Far::TopologyRefiner* refiner);

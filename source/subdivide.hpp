@@ -52,7 +52,7 @@ public:
     }
     ~CSubdivide()
     {
-        Clear();
+        //Clear();
     }
 
     bool Build(CLxUser_Mesh& mesh);
@@ -71,14 +71,14 @@ public:
     Sdc::Options::CreasingMethod           m_crease;
     Sdc::Options::TriangleSubdivision      m_triangle;
 
-    std::vector<float> m_position;  // subdivided positions
-
 private:
     bool SetupCages();
     bool CreateSubdivPoints(std::vector<LXtPointID>& points);
     bool CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
+    bool CreateSubdivUVs(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
     int  GetCagePolygon(int face, CLxUser_Polygon& upoly);
     void RemoveSourcePolygons();
+    bool RefineGPU();
 
     Far::TopologyRefiner* CreateTopologyRefiner();
     Osd::GLMeshInterface* CreateMeshInterface (Far::TopologyRefiner* refiner);
@@ -96,4 +96,7 @@ private:
     std::vector<FaceVarying>  m_fvarArray;
     std::map<LXtPolygonID,int> m_polyFaceMap;
     MeshBinning               m_mbin;
+
+    std::vector<float> m_position;  // subdivided positions
+    std::vector<std::vector<float>> m_uvs;  // subdivided uv value array
 };

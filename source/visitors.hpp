@@ -151,6 +151,7 @@ typedef struct st_FVarVertex
 typedef struct
 {
     LXtMeshMapID       m_mapID;
+    std::string        name;
     std::vector<int>   indices;
     std::vector<float> values;
 } FaceVarying;
@@ -255,6 +256,10 @@ public:
 
         if (CreateFaceVaryTable(m_mesh, m_maps, m_polygons, faceVary.indices, faceVary.values))
         {
+            faceVary.m_mapID = m_maps.ID();
+            const char* name;
+            m_maps.Name(&name);
+            faceVary.name = name;
             m_fvarArray.push_back(faceVary);
         }
         return LXe_OK;
@@ -287,6 +292,7 @@ public:
     {
         m_bin.npols          = 0;
         m_bin.polyVertCounts = 0;
+        m_bin.faceVertCounts = 0;
         m_bin.ntris          = 0;
         m_bin.triVertCounts  = 0;
     }

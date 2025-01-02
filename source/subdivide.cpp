@@ -101,6 +101,55 @@ struct FVarVertexUV {
 //
 // Refine subdivided positions from source mesh vertices.
 //
+bool CSubdivide::RefineGPU ()
+{
+    printf("CSubdivide::Refine m_adaptive = %d\n", m_adaptive);
+	if (!m_mesh.test ())
+		return false;
+
+	CLxUser_Point   upoint;
+	LXtFVector		pos;
+
+	m_mesh.GetPoints (upoint);
+	auto nvrt = m_points.size ();
+	if (!nvrt)
+		return false;
+
+    std::vector<float> vertex(nvrt * 3);
+    for (auto i = 0u; i < nvrt; i++) {
+        upoint.Select (m_points[i]);
+        upoint.Pos (pos);
+        vertex[i * 3    ] = pos[0];
+        vertex[i * 3 + 1] = pos[1];
+        vertex[i * 3 + 2] = pos[2];
+    }
+    m_glmesh->UpdateVertexBuffer (&vertex[0], 0, nvrt);
+    m_glmesh->Refine();
+    m_glmesh->Synchronize();
+
+    Far::TopologyLevel const& refCageLevel = m_refiner->GetLevel(0);
+    Far::TopologyLevel const& refLastLevel = m_refiner->GetLevel(m_level);
+
+    unsigned int size   = refLastLevel.GetNumVertices() * 3;
+    unsigned int offset = refCageLevel.GetNumVertices() * 3;
+    GLuint vbo = m_glmesh->BindVertexBuffer();
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    const float* posPtr = static_cast<const float*>(glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY));
+    posPtr += offset;
+    m_position.resize(refLastLevel.GetNumVertices() * 3);
+    for (auto i = 0u; i < m_position.size(); i++)
+    {
+        m_position[i] = posPtr[i];
+    }
+    glUnmapBuffer(GL_ARRAY_BUFFER);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	return true;
+}
+
+//
+// Refine subdivided positions from source mesh vertices.
+//
 bool CSubdivide::Refine ()
 {
     printf("CSubdivide::Refine m_adaptive = %d\n", m_adaptive);
@@ -115,88 +164,96 @@ bool CSubdivide::Refine ()
 	if (!nvrt)
 		return false;
 
-    if (m_glmesh)
+    int nRefinedLevels = static_cast<int>(m_level + 1);
+    if (m_adaptive)
     {
-        std::vector<float> vertex(nvrt * 3);
-        for (auto i = 0u; i < nvrt; i++) {
-            upoint.Select (m_points[i]);
-            upoint.Pos (pos);
-            vertex[i * 3    ] = pos[0];
-            vertex[i * 3 + 1] = pos[1];
-            vertex[i * 3 + 2] = pos[2];
-        }
-        m_glmesh->UpdateVertexBuffer (&vertex[0], 0, nvrt);
-        m_glmesh->Refine();
-        m_glmesh->Synchronize();
-
-        Far::TopologyLevel const& refCageLevel = m_refiner->GetLevel(0);
-        Far::TopologyLevel const& refLastLevel = m_refiner->GetLevel(m_level);
-
-        unsigned int size   = refLastLevel.GetNumVertices() * 3;
-        unsigned int offset = refCageLevel.GetNumVertices() * 3;
-        GLuint vbo = m_glmesh->BindVertexBuffer();
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        const float* pos = static_cast<const float*>(glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY));
-        pos += offset;
-        m_position.resize(refLastLevel.GetNumVertices() * 3);
-        for (auto i = 0u; i < m_position.size(); i++)
-        {
-           m_position[i] = pos[i];
-        }
-        glUnmapBuffer(GL_ARRAY_BUFFER);
-        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        Far::PatchTableFactory::Options patchOptions(m_level);
+        patchOptions.useInfSharpPatch = true;
+        patchOptions.generateLegacySharpCornerPatches = false;
+        patchOptions.generateVaryingTables = false;
+        patchOptions.generateFVarTables = false;
+        patchOptions.endCapType =
+            Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
+        m_refiner->RefineAdaptive(patchOptions.GetRefineAdaptiveOptions());
     }
     else
+        m_refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(m_level));
+
+    std::vector<Point3> vertex(m_refiner->GetNumVerticesTotal());
+    for (auto i = 0u; i < nvrt; i++) {
+        upoint.Select (m_points[i]);
+        upoint.Pos (pos);
+        vertex[i].SetPoint (pos[0], pos[1], pos[2]);
+    }
+
+    std::vector<std::vector<FVarVertexUV>> fvarArray(m_fvarArray.size());
+
+    printf("m_fvarArray = %zu\n", m_fvarArray.size());
+    for (auto i = 0u; i < m_fvarArray.size(); i++)
     {
-        int nRefinedLevels = static_cast<int>(m_level + 1);
-        if (m_adaptive)
+        printf("[%u] indices = %zu values = %zu\n", i, m_fvarArray[i].indices.size(), m_fvarArray[i].values.size());
+        fvarArray[i].resize(m_refiner->GetNumFVarValuesTotal(i));
+        for (auto j = 0u; j < fvarArray[i].size(); j++)
         {
-            Far::PatchTableFactory::Options patchOptions(m_level);
-            patchOptions.useInfSharpPatch = true;
-            patchOptions.generateLegacySharpCornerPatches = false;
-            patchOptions.generateVaryingTables = false;
-            patchOptions.generateFVarTables = false;
-            patchOptions.endCapType =
-                Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS;
-            m_refiner->RefineAdaptive(patchOptions.GetRefineAdaptiveOptions());
+            fvarArray[i][j].u = m_fvarArray[i].values[j * 2];
+            fvarArray[i][j].v = m_fvarArray[i].values[j * 2 + 1];
         }
-        else
-            m_refiner->RefineUniform(Far::TopologyRefiner::UniformOptions(m_level));
-    
-        std::vector<Point3> vertex(m_refiner->GetNumVerticesTotal());
-        for (auto i = 0u; i < nvrt; i++) {
-            upoint.Select (m_points[i]);
-            upoint.Pos (pos);
-            vertex[i].SetPoint (pos[0], pos[1], pos[2]);
-        }
+    }
 
-        // Interpolate vertex primvar data
-        Far::PrimvarRefiner primvarRefiner(*m_refiner);
+    // Interpolate vertex primvar data
+    Far::PrimvarRefiner primvarRefiner(*m_refiner);
 
-        if (m_adaptive)
-            nRefinedLevels = static_cast<unsigned> (m_refiner->GetNumLevels());
+    if (m_adaptive)
+        nRefinedLevels = static_cast<unsigned> (m_refiner->GetNumLevels());
 
-    printf("CSubdivide::Refine nRefinedLevels = %u / %u\n", nRefinedLevels, m_level);
-        Point3 * src = &vertex[0];
+printf("CSubdivide::Refine nRefinedLevels = %u / %u\n", nRefinedLevels, m_level);
+    Point3 * src = &vertex[0];
+    for (auto level = 1; level < nRefinedLevels; level++) {
+        Point3 * dst = src + m_refiner->GetLevel(level-1).GetNumVertices();
+        primvarRefiner.Interpolate(level, src, dst);
+        src = dst;
+        printf("-- level %d num vertices = %d\n", level, m_refiner->GetLevel(level).GetNumVertices());
+    }
+
+    std::vector<FVarVertexUV*> uvArray(fvarArray.size());
+    for (auto i = 0u; i < fvarArray.size(); i++)
+    {
+        FVarVertexUV* srcUV = &fvarArray[i][0];
         for (auto level = 1; level < nRefinedLevels; level++) {
-            Point3 * dst = src + m_refiner->GetLevel(level-1).GetNumVertices();
-            primvarRefiner.Interpolate(level, src, dst);
-            src = dst;
-            printf("-- level %d num vertices = %d\n", level, m_refiner->GetLevel(level).GetNumVertices());
+            FVarVertexUV * dstUV = srcUV + m_refiner->GetLevel(level-1).GetNumFVarValues(i);
+            primvarRefiner.InterpolateFaceVarying(level, srcUV, dstUV, i);
+            srcUV = dstUV;
+        printf("-- level %d num fvar = %d\n", level, m_refiner->GetLevel(level).GetNumFVarValues(i));
         }
-    
-        Far::TopologyLevel const & refLastLevel = m_refiner->GetLevel(m_level);
+        uvArray[i] = srcUV;
+    }
 
-        int nverts = refLastLevel.GetNumVertices();
-        m_position.resize(nverts * 3);
-        printf("CSubdivide::Refine nverts = %d total = %d\n", nverts, m_refiner->GetNumVerticesTotal());
+    Far::TopologyLevel const & refLastLevel = m_refiner->GetLevel(m_level);
 
-        for (auto i = 0; i < nverts; i++) {
-            const float * pos = src[i].GetPoint();
-            m_position[i * 3    ] = pos[0];
-            m_position[i * 3 + 1] = pos[1];
-            m_position[i * 3 + 2] = pos[2];
-        //    printf("[%d] pos = %f %f %f\n", i, pos[0], pos[1], pos[2]);
+    int nverts = refLastLevel.GetNumVertices();
+    m_position.resize(nverts * 3);
+    printf("CSubdivide::Refine nverts = %d total = %d\n", nverts, m_refiner->GetNumVerticesTotal());
+
+    for (auto i = 0; i < nverts; i++) 
+    {
+        const float * pos = src[i].GetPoint();
+        m_position[i * 3    ] = pos[0];
+        m_position[i * 3 + 1] = pos[1];
+        m_position[i * 3 + 2] = pos[2];
+    //    printf("[%d] pos = %f %f %f\n", i, pos[0], pos[1], pos[2]);
+    }
+
+    m_uvs.resize(fvarArray.size());
+
+    for (auto i = 0u; i < fvarArray.size(); i++)
+    {
+        int nuvs = refLastLevel.GetNumFVarValues(i);
+        m_uvs[i].resize(nuvs * 2);
+        FVarVertexUV* fvarUV = uvArray[i];
+        for (auto j = 0; j < nuvs; j++) {
+            m_uvs[i][j * 2    ] = fvarUV[j].u;
+            m_uvs[i][j * 2 + 1] = fvarUV[j].v;
+  //          printf("[%d] uv = %f %f\n", j, fvarUV[j].u, fvarUV[j].v);
         }
     }
 
@@ -213,32 +270,33 @@ bool CSubdivide::Apply (CLxUser_Mesh& edit_mesh)
 
     CreateSubdivPoints(points);
     CreateSubdivPolygons(points, polygons);
+    CreateSubdivUVs(points, polygons);
     RemoveSourcePolygons();
+    printf("CSubdivide::Done\n");
 	return true;
 }
 
 bool CSubdivide::CreateSubdivPoints(std::vector<LXtPointID>& points)
 {
     printf("CSubdivide::CreateSubdivPoints = %zu\n", m_position.size());
-    LXtVector      pos;
-    LXtPointID pnt;
+    LXtVector       pos;
+    LXtPointID      pnt;
     CLxUser_Point   point;
     point.fromMesh(m_edit_mesh);
-    points.clear();
-    for (auto i = 0u; i < m_position.size(); i+=3)
+    points.resize(m_position.size() / 3);
+    for (auto i = 0u; i < points.size(); i++)
     {
-        pos[0] = m_position[i  ];
-        pos[1] = m_position[i+1];
-        pos[2] = m_position[i+2];
+        pos[0] = m_position[i * 3    ];
+        pos[1] = m_position[i * 3 + 1];
+        pos[2] = m_position[i * 3 + 2];
         point.New(pos, &pnt);
-        points.push_back(pnt);
+        points[i] = pnt;
     }
     return true;
 }
 
 bool CSubdivide::CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons)
 {
-    printf("CSubdivide::CreateSubdivPolygons\n");
     Far::TopologyLevel const& refLastLevel = m_refiner->GetLevel(m_level);
     auto numFaces = refLastLevel.GetNumFaces();
     LXtPointID       verts[4];
@@ -247,6 +305,9 @@ bool CSubdivide::CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vect
 
     CLxUser_Polygon  upoly;
     m_edit_mesh.GetPolygons(upoly);
+    printf("CSubdivide::CreateSubdivPolygons numFaces = %d points = %zu\n", numFaces, points.size());
+
+    polygons.clear();
 
     for (auto face = 0; face < numFaces; face++)
     {
@@ -257,7 +318,52 @@ bool CSubdivide::CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vect
         }
         GetCagePolygon(face, upoly);
         upoly.NewProto(type, verts, fverts.size(), 0, &polID);
+        printf("[%d] fvers = %d (%d %d %d %d) verts %p %p %p %p\n", face, fverts.size(), 
+            fverts[0], fverts[1], fverts[2], fverts[3], verts[0], verts[1], verts[2], verts[3]);
         polygons.push_back(polID);
+    }
+    return true;
+}
+
+bool CSubdivide::CreateSubdivUVs(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons)
+{
+    printf("CSubdivide::CreateSubdivUVs\n");
+    Far::TopologyLevel const& refLastLevel = m_refiner->GetLevel(m_level);
+    auto numFaces = refLastLevel.GetNumFaces();
+    LXtPointID       pnt;
+    float            uv[2];
+
+    CLxUser_Polygon  upoly;
+    m_edit_mesh.GetPolygons(upoly);
+
+	CLxUser_MeshMap	 umap;
+	m_edit_mesh.GetMaps(umap);
+
+    printf("m_fvarArray = %zu numFaces = %d points = %zu polygons = %zu\n", m_fvarArray.size(), numFaces, points.size(), polygons.size());
+    for (auto iv = 0u; iv < m_fvarArray.size(); iv++)
+    {
+        umap.SelectByName (LXi_VMAP_TEXTUREUV, m_fvarArray[iv].name.c_str());
+        LXtMeshMapID     mapID = umap.ID();
+        printf("[%d] m_fvarArray indices = %zu values = %zu\n", iv, m_fvarArray[iv].indices.size(), m_fvarArray[iv].values.size());
+        for (auto face = 0; face < numFaces; face++)
+        {
+            Far::ConstIndexArray fverts = refLastLevel.GetFaceVertices(face);
+            Far::ConstIndexArray fuvs   = refLastLevel.GetFaceFVarValues(face, iv);
+    printf("[%d] fverts = %d fuvs = %d polygon %p fverts %d %d %d %d\n", face, fverts.size(), fuvs.size(), polygons[face], fverts[0], fverts[1], fverts[2], fverts[3]);
+            upoly.Select(polygons[face]);
+            for (int i = 0; i < fverts.size(); i++) {
+                auto j = static_cast<int>(fverts[i]);
+                assert((j >= 0) && (j < points.size()));
+                pnt = points[j];
+                auto k = static_cast<int>(fuvs[i]);
+                assert(pnt != nullptr);
+                assert((k >= 0) && ((k * 2) < m_uvs[iv].size()));
+                uv[0] = m_uvs[iv][k * 2];
+                uv[1] = m_uvs[iv][k * 2 + 1];
+                printf("[%d] pnt %p (%d) mapID %p uv %f %f\n", i, pnt, k, mapID, uv[0], uv[1]);
+				upoly.SetMapValue (pnt, mapID, uv);
+            }
+        }
     }
     return true;
 }
@@ -346,10 +452,9 @@ bool CSubdivide::SetupCages()
 void CSubdivide::RemoveSourcePolygons()
 {
     CLxUser_Polygon upoly;
-    unsigned int    count;
 
     m_edit_mesh.GetPolygons(upoly);
-    printf("CSubdivide::DeleteSourcePolygons\n");
+    printf("CSubdivide::RemoveSourcePolygons = %zu\n", m_polygons.size());
    for (auto i = 0u; i < m_polygons.size(); i++)
    {
         upoly.Select(m_polygons[i]);

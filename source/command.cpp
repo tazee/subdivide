@@ -12,25 +12,22 @@ void CCommand::basic_Execute(unsigned int /*flags*/)
     int ival;
 
     attr_GetInt(ARGi_COMMAND_LEVEL, &ival);
-    csub.m_level = static_cast<unsigned>(ival);
+    csub.SetLevel(ival);
 
     attr_GetInt(ARGi_COMMAND_SCHEME, &ival);
-    csub.m_scheme = static_cast<Sdc::SchemeType>(ival);
-
-    attr_GetInt(ARGi_COMMAND_ADAPTIVE, &ival);
-    csub.m_adaptive = static_cast<bool>(ival);
+    csub.SetScheme(ival);
 
     attr_GetInt(ARGi_COMMAND_BOUNDARY, &ival);
-    csub.m_boundary = static_cast<Sdc::Options::VtxBoundaryInterpolation>(ival);
+    csub.SetBoundary(ival);
 
     attr_GetInt(ARGi_COMMAND_FVAR, &ival);
-    csub.m_fvar = static_cast<Sdc::Options::FVarLinearInterpolation>(ival);
+    csub.SetFVar(ival);
 
     attr_GetInt(ARGi_COMMAND_CREASE, &ival);
-    csub.m_crease = static_cast<Sdc::Options::CreasingMethod>(ival);
+    csub.SetCrease(ival);
 
     attr_GetInt(ARGi_COMMAND_TRIANGLE, &ival);
-    csub.m_triangle = static_cast<Sdc::Options::TriangleSubdivision>(ival);
+    csub.SetTriangle(ival);
 
     check(lyr_S.BeginScan(LXf_LAYERSCAN_EDIT_POLYS, scan));
     check(scan.Count(&n));
@@ -38,15 +35,21 @@ void CCommand::basic_Execute(unsigned int /*flags*/)
     CLxUser_Mesh        base_mesh;
     CLxUser_Mesh        edit_mesh;
 
+    CLxUser_MeshService mS;
+    LXtMarkMode pick = mS.SetMode(LXsMARK_SELECT);
+
     for (auto i = 0u; i < n; i++)
     {
         check(scan.BaseMeshByIndex(i, base_mesh));
         check(scan.EditMeshByIndex(i, edit_mesh));
 
-        csub.Build(base_mesh);
-        csub.Apply(edit_mesh);
-
-        scan.SetMeshChange(i, LXf_MESHEDIT_GEOMETRY);
+        if (csub.Build(base_mesh, pick))
+        {
+            if (csub.Apply(edit_mesh))
+            {
+                scan.SetMeshChange(i, LXf_MESHEDIT_GEOMETRY);
+            }
+        }
     }
 
     scan.Apply();
@@ -84,10 +87,6 @@ LxResult CCommand::cmd_DialogInit(void)
     if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_SCHEME)) == false)
     {
         attr_SetInt(ARGi_COMMAND_SCHEME, 1);
-    }
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_ADAPTIVE)) == false)
-    {
-        attr_SetInt(ARGi_COMMAND_ADAPTIVE, 0);
     }
     if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_BOUNDARY)) == false)
     {

@@ -25,7 +25,7 @@
 //
 // Edge Visitor to get the edge creases from the source edge map.
 //
-class EdgeVisitor : public CLxImpl_AbstractVisitor
+class EdgeCreaseVisitor : public CLxImpl_AbstractVisitor
 {
 public:
     std::vector<float>&        m_edgeCreases;
@@ -36,13 +36,17 @@ public:
     CLxUser_Point& m_point;
     CLxUser_Edge&  m_edge;
 
-    EdgeVisitor(CLxLoc_MeshMap&            umap,
-                CLxUser_Point&             point,
-                CLxUser_Edge&              edge,
-                std::vector<float>&        edgeCreases,
-                std::vector<int>&          edgeCreaseIndices,
-                std::map<LXtPointID, int>& pointIndexMap)
-        : m_edgeCreases(edgeCreases), m_edgeCreaseIndices(edgeCreaseIndices), m_pointIndexMap(pointIndexMap), m_point(point), m_edge(edge)
+    EdgeCreaseVisitor  (CLxLoc_MeshMap&            umap,
+                        CLxUser_Point&             point,
+                        CLxUser_Edge&              edge,
+                        std::vector<float>&        edgeCreases,
+                        std::vector<int>&          edgeCreaseIndices,
+                        std::map<LXtPointID, int>& pointIndexMap)
+        :   m_edgeCreases(edgeCreases), 
+            m_edgeCreaseIndices(edgeCreaseIndices), 
+            m_pointIndexMap(pointIndexMap), 
+            m_point(point), 
+            m_edge(edge)
     {
         m_mapID = umap.ID();
     }
@@ -93,7 +97,7 @@ public:
 //
 // Vertex Visitor to get the vertex creases from the source vertex map.
 //
-class VertexVisitor : public CLxImpl_AbstractVisitor
+class VertexCreaseVisitor : public CLxImpl_AbstractVisitor
 {
 public:
     std::vector<float>&        m_vtxCreases;
@@ -103,12 +107,15 @@ public:
     LXtMeshMapID   m_mapID;
     CLxUser_Point& m_point;
 
-    VertexVisitor(CLxLoc_MeshMap&            umap,
-                  CLxUser_Point&             point,
-                  std::vector<float>&        vtxCreases,
-                  std::vector<int>&          vtxCreaseIndices,
-                  std::map<LXtPointID, int>& pointIndexMap)
-        : m_vtxCreases(vtxCreases), m_vtxCreaseIndices(vtxCreaseIndices), m_pointIndexMap(pointIndexMap), m_point(point)
+    VertexCreaseVisitor(CLxLoc_MeshMap&            umap,
+                        CLxUser_Point&             point,
+                        std::vector<float>&        vtxCreases,
+                        std::vector<int>&          vtxCreaseIndices,
+                        std::map<LXtPointID, int>& pointIndexMap)
+        :   m_vtxCreases(vtxCreases), 
+            m_vtxCreaseIndices(vtxCreaseIndices), 
+            m_pointIndexMap(pointIndexMap), 
+            m_point(point)
     {
         m_mapID = umap.ID();
     }
@@ -156,21 +163,23 @@ typedef struct
     std::vector<float> values;
 } FaceVarying;
 
-class MeshMapVisitor : public CLxImpl_AbstractVisitor
+class PolygonFVarVisitor : public CLxImpl_AbstractVisitor
 {
 public:
     CLxUser_Mesh&              m_mesh;
     CLxUser_MeshMap            m_maps;
     unsigned int               m_count;
+    bool                       m_triangle;
     std::vector<FaceVarying>&  m_fvarArray;
     std::vector<LXtPolygonID>& m_polygons;
 
-    MeshMapVisitor(CLxUser_Mesh& mesh, std::vector<FaceVarying>& fvarArray, std::vector<LXtPolygonID>& polygons)
+    PolygonFVarVisitor(CLxUser_Mesh& mesh, std::vector<FaceVarying>& fvarArray, std::vector<LXtPolygonID>& polygons)
         : m_mesh(mesh), m_fvarArray(fvarArray), m_polygons(polygons)
     {
         m_count = 0;
         m_mesh.GetMaps(m_maps);
         m_maps.FilterByType(LXi_VMAP_TEXTUREUV);
+        m_triangle = false;
     }
 
     bool LookupDisco(std::vector<FVarDisco>& discos, unsigned int dim, const float* value, unsigned int* index)
@@ -221,29 +230,65 @@ public:
         {
             upoly.Select(polyIDs[i]);
             upoly.VertexCount(&count);
-            for (unsigned int j = 0; j < count; j++)
+            if (m_triangle && (count > 3))
             {
-                upoly.VertexByIndex(j, &point);
-                res = upoly.MapEvaluate(umap.ID(), point, value);
-                if (res != LXe_OK)
+                upoly.GenerateTriangles(&count);
+                for (auto j = 0u; j < count; j++)
                 {
-                    indices.push_back(0);
-                    continue;
-                }
-                upoint.Select(point);
-                upoint.Index(&ii);
-                if (LookupDisco(fvarTable[ii].discos, dim, value, &index))
-                    indices.push_back(index);
-                else
-                {
-                    disco.index = total++;
-                    for (unsigned int k = 0; k < dim; k++)
+                    LXtPointID pnt3[3];
+                    upoly.TriangleByIndex(j, &pnt3[0], &pnt3[1], &pnt3[2]);
+                    for (auto jj = 0; jj < 3; jj++)
                     {
-                        disco.values[k] = value[k];
-                        values.push_back(value[k]);
+                        res = upoly.MapEvaluate(umap.ID(), pnt3[jj], value);
+                        if (res != LXe_OK)
+                        {
+                            indices.push_back(0);
+                            continue;
+                        }
+                        upoint.Select(pnt3[jj]);
+                        upoint.Index(&ii);
+                        if (LookupDisco(fvarTable[ii].discos, dim, value, &index))
+                            indices.push_back(index);
+                        else
+                        {
+                            disco.index = total++;
+                            for (unsigned int k = 0; k < dim; k++)
+                            {
+                                disco.values[k] = value[k];
+                                values.push_back(value[k]);
+                            }
+                            indices.push_back(disco.index);
+                            fvarTable[ii].discos.push_back(disco);
+                        }
                     }
-                    indices.push_back(disco.index);
-                    fvarTable[ii].discos.push_back(disco);
+                }
+            }
+            else
+            {
+                for (unsigned int j = 0; j < count; j++)
+                {
+                    upoly.VertexByIndex(j, &point);
+                    res = upoly.MapEvaluate(umap.ID(), point, value);
+                    if (res != LXe_OK)
+                    {
+                        indices.push_back(0);
+                        continue;
+                    }
+                    upoint.Select(point);
+                    upoint.Index(&ii);
+                    if (LookupDisco(fvarTable[ii].discos, dim, value, &index))
+                        indices.push_back(index);
+                    else
+                    {
+                        disco.index = total++;
+                        for (unsigned int k = 0; k < dim; k++)
+                        {
+                            disco.values[k] = value[k];
+                            values.push_back(value[k]);
+                        }
+                        indices.push_back(disco.index);
+                        fvarTable[ii].discos.push_back(disco);
+                    }
                 }
             }
         }
@@ -286,6 +331,7 @@ public:
 
     CLxUser_Polygon& m_upoly;
     MeshBinning&     m_bin;
+    LXtMarkMode      m_mask, m_hide, m_lock;
 
     PolygonMeshBinVisitor(CLxUser_Polygon& upoly, MeshBinning& bin, std::vector<LXtPolygonID>& polygons)
         : m_polygons(polygons), m_upoly(upoly), m_bin(bin)
@@ -295,6 +341,10 @@ public:
         m_bin.faceVertCounts = 0;
         m_bin.ntris          = 0;
         m_bin.triVertCounts  = 0;
+        m_mask = LXiMARK_ANY;
+        CLxUser_MeshService mS;
+        m_hide = mS.SetMode(LXsMARK_HIDE);
+        m_lock = mS.SetMode(LXsMARK_LOCK);
     }
 
     bool TestPolygon(CLxUser_Polygon& poly)
@@ -307,6 +357,12 @@ public:
             return false;
         poly.Type(&type);
         if ((type != LXiPTYP_PSUB) && (type != LXiPTYP_SUBD) && (type != LXiPTYP_FACE))
+            return false;
+        if (m_mask && (poly.TestMarks(m_mask) == LXe_FALSE))
+            return false;
+        if (poly.TestMarks(m_hide) == LXe_TRUE)
+            return false;
+        if (poly.TestMarks(m_lock) == LXe_TRUE)
             return false;
 
         return true;
@@ -332,14 +388,22 @@ public:
 // Visitor which clears marks on vertices, or set marks on the vertices of
 // tagged polygons.
 //
-class MarkingVisitor : public CLxImpl_AbstractVisitor
+class VertexMarkVisitor : public CLxImpl_AbstractVisitor
 {
 public:
-    CLxUser_Point   pnt;
-    CLxUser_Polygon pol;
-    LXtMarkMode     mask;
-    LXtID4          type;
-    bool            clear;
+    CLxUser_Point   m_point;
+    CLxUser_Polygon m_poly;
+    LXtMarkMode     m_mask;
+    LXtMarkMode     m_pick;
+    LXtID4          m_type;
+    bool            m_clear;
+
+    VertexMarkVisitor ()
+    {
+        m_pick = LXiMARK_ANY;
+        m_mask = LXiMARK_ANY;
+        m_clear = false;
+    }
 
     //
     // Return true if the polygon is a valid polygon for subdivision.
@@ -355,27 +419,32 @@ public:
         poly.Type(&type);
         if ((type != LXiPTYP_PSUB) && (type != LXiPTYP_SUBD) && (type != LXiPTYP_FACE))
             return false;
+        if (m_pick && (poly.TestMarks(m_pick) == LXe_FALSE))
+            return false;
 
         return true;
     }
 
     LxResult Evaluate() override
     {
-        if (clear)
+        if (m_clear)
         {
-            pnt.SetMarks(mask);
+            if (m_point.test())
+                m_point.SetMarks(m_mask);
+            if (m_poly.test())
+                m_poly.SetMarks(m_mask);
             return LXe_OK;
         }
 
-        if (TestPolygon(pol))
+        if (TestPolygon(m_poly))
         {
             unsigned n;
 
-            pol.VertexCount(&n);
+            m_poly.VertexCount(&n);
             for (auto i = 0u; i < n; i++)
             {
-                pnt.SelectPolygonVertex(pol.ID(), i);
-                pnt.SetMarks(mask);
+                m_point.SelectPolygonVertex(m_poly.ID(), i);
+                m_point.SetMarks(m_mask);
             }
         }
 
@@ -389,20 +458,21 @@ public:
 class VertexTableVisitor : public CLxImpl_AbstractVisitor
 {
 public:
-    CLxUser_Point            pnt;
-    LXtMarkMode              mask;
+    CLxUser_Point            m_point;
+    LXtMarkMode              m_mask;
     std::vector<LXtPointID>& m_points;
 
     VertexTableVisitor(std::vector<LXtPointID>& points) : m_points(points)
     {
         m_points.clear();
+        m_mask = LXiMARK_ANY;
     }
 
     LxResult Evaluate() override
     {
-        if (pnt.TestMarks(mask) == LXe_TRUE)
+        if (m_point.TestMarks(m_mask) == LXe_TRUE)
         {
-            m_points.push_back(pnt.ID());
+            m_points.push_back(m_point.ID());
         }
 
         return LXe_OK;

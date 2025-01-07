@@ -50,6 +50,7 @@ target_include_directories(lxsdk
 add_library(subdivide
     SHARED
         "source/command.cpp"
+        "source/tool.cpp"
         "source/meshop.cpp"
         "source/initialize.cpp"
         "source/subdivide.cpp"

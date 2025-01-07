@@ -1,8 +1,8 @@
-#include "meshop.hpp"
+#include "tool.hpp"
 #include "command.hpp"
 
 void initialize()
 {
-    CMeshOp::initialize();
+    CTool::initialize();
     CCommand::initialize();
 }

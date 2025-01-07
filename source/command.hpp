@@ -22,7 +22,6 @@ using namespace lx_err;
 
 #define ARGs_COMMAND_LEVEL    "level"
 #define ARGs_COMMAND_SCHEME   "scheme"
-#define ARGs_COMMAND_ADAPTIVE "adaptive"
 #define ARGs_COMMAND_BOUNDARY "boundary"
 #define ARGs_COMMAND_FVAR     "fvar"
 #define ARGs_COMMAND_CREASE   "crease"
@@ -30,11 +29,10 @@ using namespace lx_err;
 
 #define ARGi_COMMAND_LEVEL     0
 #define ARGi_COMMAND_SCHEME    1
-#define ARGi_COMMAND_ADAPTIVE  2
-#define ARGi_COMMAND_BOUNDARY  3
-#define ARGi_COMMAND_FVAR      4
-#define ARGi_COMMAND_CREASE    5
-#define ARGi_COMMAND_TRIANGLE  6
+#define ARGi_COMMAND_BOUNDARY  2
+#define ARGi_COMMAND_FVAR      3
+#define ARGi_COMMAND_CREASE    4
+#define ARGi_COMMAND_TRIANGLE  5
 
 #ifndef LXx_OVERRIDE
 #define LXx_OVERRIDE override
@@ -78,9 +76,6 @@ public:
         dyna_Add(ARGs_COMMAND_SCHEME, LXsTYPE_INTEGER);
         dyna_SetHint(ARGi_COMMAND_SCHEME, subdivide_scheme);
         attr_SetInt(ARGi_COMMAND_SCHEME, 1);
-    
-        dyna_Add(ARGs_COMMAND_ADAPTIVE, LXsTYPE_BOOLEAN);
-        attr_SetInt(ARGi_COMMAND_ADAPTIVE, 0);
     
         dyna_Add(ARGs_COMMAND_BOUNDARY, LXsTYPE_INTEGER);
         dyna_SetHint(ARGi_COMMAND_BOUNDARY, subdivide_boundary);

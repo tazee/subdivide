@@ -26,14 +26,6 @@ using namespace OpenSubdiv;
 typedef Sdc::Options            Options;
 typedef Far::TopologyDescriptor Descriptor;
 
-enum KernelType
-{
-    OSD_KERNEL_CPU  = 0,  // CPU
-    OSD_KERNEL_CL   = 1,  // OpenCL
-    OSD_KERNEL_TBB  = 2,  // TBB
-    OSD_KERNEL_GLSL = 3,  // GLSL
-};
-
 class CSubdivide
 {
 public:
@@ -41,29 +33,33 @@ public:
     {
         m_level    = 3;
         m_scheme   = Sdc::SCHEME_CATMARK;
-        m_kernel   = OSD_KERNEL_CPU;
-        m_adaptive = false;
         m_boundary = Sdc::Options::VTX_BOUNDARY_NONE;
         m_fvar     = Sdc::Options::FVAR_LINEAR_ALL;
         m_crease   = Sdc::Options::CREASE_UNIFORM;
         m_triangle = Sdc::Options::TRI_SUB_CATMARK;
-        m_glmesh   = nullptr;
         m_refiner  = nullptr;
+        m_pick     = 0;
     }
     ~CSubdivide()
     {
-        //Clear();
+        Clear();
     }
 
-    bool Build(CLxUser_Mesh& mesh);
+    bool Build(CLxUser_Mesh& mesh, LXtMarkMode pick);
     bool Refine();
     bool Apply(CLxUser_Mesh& edit_mesh);
+    bool Update();
     void Clear();
+
+    void SetLevel (int level);
+    void SetScheme (int scheme);
+    void SetBoundary (int bounary);
+    void SetFVar (int fvar);
+    void SetCrease (int crease);
+    void SetTriangle(int triangle);
 
     // OpenSubdiv options
     unsigned m_level;
-    unsigned m_kernel;
-    bool     m_adaptive;
 
     Sdc::SchemeType m_scheme;
     Sdc::Options::VtxBoundaryInterpolation m_boundary;
@@ -78,25 +74,25 @@ private:
     bool CreateSubdivUVs(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
     int  GetCagePolygon(int face, CLxUser_Polygon& upoly);
     void RemoveSourcePolygons();
-    bool RefineGPU();
+    void RemoveSourcePoints();
 
     Far::TopologyRefiner* CreateTopologyRefiner();
-    Osd::GLMeshInterface* CreateMeshInterface (Far::TopologyRefiner* refiner);
 
     CLxUser_Mesh        m_mesh;
     CLxUser_Mesh        m_edit_mesh;
     CLxUser_LogService  s_log;
     CLxUser_MeshService s_mesh;
 
-    Osd::GLMeshInterface* m_glmesh;
     Far::TopologyRefiner* m_refiner;
 
-    std::vector<LXtPolygonID> m_polygons;
-    std::vector<LXtPointID>   m_points;
+    std::vector<LXtPolygonID> m_polygons;   // source cage polygons
+    std::vector<LXtPointID>   m_points;     // source points of cages
     std::vector<FaceVarying>  m_fvarArray;
     std::map<LXtPolygonID,int> m_polyFaceMap;
     MeshBinning               m_mbin;
+    LXtMarkMode               m_pick;
 
     std::vector<float> m_position;  // subdivided positions
     std::vector<std::vector<float>> m_uvs;  // subdivided uv value array
+    std::vector<LXtPointID> m_new_points;  // subdivided new points
 };

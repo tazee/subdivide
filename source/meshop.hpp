@@ -30,35 +30,35 @@
 
 #include <opensubdiv/osd/cpuEvaluator.h>
 
+#include "subdivide.hpp"
+
 using namespace lx_err;
 
-#define SRVNAME_MESHOP "meshop.osd"
+#define SRVNAME "meshop.osd"
 
-#define ARGs_MESHOP_LEVEL    "level"
-#define ARGs_MESHOP_SCHEME   "scheme"
-#define ARGs_MESHOP_ADAPTIVE "adaptive"
-#define ARGs_MESHOP_BOUNDARY "boundary"
-#define ARGs_MESHOP_FVAR     "fvar"
-#define ARGs_MESHOP_CREASE   "crease"
-#define ARGs_MESHOP_TRIANGLE "triangle"
+#define ARGs_LEVEL    "level"
+#define ARGs_SCHEME   "scheme"
+#define ARGs_BOUNDARY "boundary"
+#define ARGs_FVAR     "fvar"
+#define ARGs_CREASE   "crease"
+#define ARGs_TRIANGLE "triangle"
 
-#define ARGi_MESHOP_LEVEL     0
-#define ARGi_MESHOP_SCHEME    1
-#define ARGi_MESHOP_ADAPTIVE  2
-#define ARGi_MESHOP_BOUNDARY  3
-#define ARGi_MESHOP_FVAR      4
-#define ARGi_MESHOP_CREASE    5
-#define ARGi_MESHOP_TRIANGLE  6
+#define ARGi_LEVEL     0
+#define ARGi_SCHEME    1
+#define ARGi_BOUNDARY  2
+#define ARGi_FVAR      3
+#define ARGi_CREASE    4
+#define ARGi_TRIANGLE  5
 
 #ifndef LXx_OVERRIDE
 #define LXx_OVERRIDE override
 #endif
 
-class CMeshOp : public CLxImpl_MeshOperation, public CLxDynamicAttributes, public CLxImpl_MeshElementGroup
+class CMeshOp : public CLxImpl_MeshOperation, public CLxDynamicAttributes
 {
 public:
     CLxUser_MeshService  msh_S;
-    unsigned             select_mode;
+    LXtMarkMode          select_mode;
 
     CMeshOp()
     {
@@ -85,32 +85,29 @@ public:
             { 1, "chaikin" },  0
         };
 
-        dyna_Add(ARGs_MESHOP_LEVEL, LXsTYPE_INTEGER);
-        attr_SetInt(ARGi_MESHOP_LEVEL, 2);
+        dyna_Add(ARGs_LEVEL, LXsTYPE_INTEGER);
+        attr_SetInt(ARGi_LEVEL, 2);
     
-        dyna_Add(ARGs_MESHOP_SCHEME, LXsTYPE_INTEGER);
-        dyna_SetHint(ARGi_MESHOP_SCHEME, subdivide_scheme);
-        attr_SetInt(ARGi_MESHOP_SCHEME, 1);
+        dyna_Add(ARGs_SCHEME, LXsTYPE_INTEGER);
+        dyna_SetHint(ARGi_SCHEME, subdivide_scheme);
+        attr_SetInt(ARGi_SCHEME, 1);
     
-        dyna_Add(ARGs_MESHOP_ADAPTIVE, LXsTYPE_BOOLEAN);
-        attr_SetInt(ARGi_MESHOP_ADAPTIVE, 0);
+        dyna_Add(ARGs_BOUNDARY, LXsTYPE_INTEGER);
+        dyna_SetHint(ARGi_BOUNDARY, subdivide_boundary);
+        attr_SetInt(ARGi_BOUNDARY, 0);
     
-        dyna_Add(ARGs_MESHOP_BOUNDARY, LXsTYPE_INTEGER);
-        dyna_SetHint(ARGi_MESHOP_BOUNDARY, subdivide_boundary);
-        attr_SetInt(ARGi_MESHOP_BOUNDARY, 0);
+        dyna_Add(ARGs_FVAR, LXsTYPE_INTEGER);
+        dyna_SetHint(ARGi_FVAR, subdivide_fvar);
+        attr_SetInt(ARGi_FVAR, 0);
     
-        dyna_Add(ARGs_MESHOP_FVAR, LXsTYPE_INTEGER);
-        dyna_SetHint(ARGi_MESHOP_FVAR, subdivide_fvar);
-        attr_SetInt(ARGi_MESHOP_FVAR, 0);
+        dyna_Add(ARGs_CREASE, LXsTYPE_INTEGER);
+        dyna_SetHint(ARGi_CREASE, subdivide_crease);
+        attr_SetInt(ARGi_CREASE, 1);
     
-        dyna_Add(ARGs_MESHOP_CREASE, LXsTYPE_INTEGER);
-        dyna_SetHint(ARGi_MESHOP_CREASE, subdivide_crease);
-        attr_SetInt(ARGi_MESHOP_CREASE, 1);
-    
-        dyna_Add(ARGs_MESHOP_TRIANGLE, LXsTYPE_BOOLEAN);
-        attr_SetInt(ARGi_MESHOP_TRIANGLE, 0);
+        dyna_Add(ARGs_TRIANGLE, LXsTYPE_BOOLEAN);
+        attr_SetInt(ARGi_TRIANGLE, 0);
 
-        check(msh_S.ModeCompose("select", NULL, &select_mode));
+        select_mode = msh_S.SetMode(LXsMARK_SELECT);
     }
 
     static void initialize()
@@ -121,11 +118,19 @@ public:
         srv->AddInterface(new CLxIfc_Attributes<CMeshOp>);
         srv->AddInterface(new CLxIfc_StaticDesc<CMeshOp>);
 
-        lx::AddServer(SRVNAME_MESHOP, srv);
+        lx::AddServer(SRVNAME, srv);
     }
 
     LXxO_MeshOperation_Evaluate;
+    LXxO_MeshOperation_ReEvaluate;
+    LXxO_MeshOperation_Compare;
+    LXxO_MeshOperation_Convert;
+	LXxO_MeshOperation_SetTransform;
 
     static LXtTagInfoDesc descInfo[];
-                                        
+
+    //
+    // Subdivision context
+    //
+    CSubdivide m_csub;                                     
 };

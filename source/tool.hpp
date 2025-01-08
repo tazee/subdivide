@@ -120,7 +120,6 @@ public:
     unsigned    tool_CompareOp(ILxUnknownID vts, ILxUnknownID other_obj) LXx_OVERRIDE;
     LxResult    tool_UpdateOp(ILxUnknownID other_obj) LXx_OVERRIDE;
 
-    unsigned    tmod_Flags() LXx_OVERRIDE;
     LxResult    tmod_Enable(ILxUnknownID obj) LXx_OVERRIDE;
 
     using CLxDynamicAttributes::atrui_UIHints;  // to distinguish from the overloaded version in CLxImpl_AttributesUI

@@ -33,6 +33,10 @@ CTool::CTool()
         { 0, "uniform" }, 
         { 1, "chaikin" },  0
     };
+    static LXtTextValueHint triangle_subdivision[] = {
+        { 0, "catmark" }, 
+        { 1, "smooth" },  0
+    };
 
     CLxUser_PacketService sPkt;
     CLxUser_MeshService   sMesh;
@@ -51,7 +55,8 @@ CTool::CTool()
     dyna_Add(ARGs_CREASE, LXsTYPE_INTEGER);
     dyna_SetHint(ARGi_CREASE, subdivide_crease);
 
-    dyna_Add(ARGs_TRIANGLE, LXsTYPE_BOOLEAN);
+    dyna_Add(ARGs_TRIANGLE, LXsTYPE_INTEGER);
+    dyna_SetHint(ARGi_TRIANGLE, triangle_subdivision);
 
     tool_Reset();
 
@@ -127,12 +132,10 @@ unsigned CTool::tool_CompareOp(ILxUnknownID	vts, ILxUnknownID other_obj)
             (prevOp->m_scheme == scheme) &&
             (prevOp->m_fvar == fvar))
         {
-            printf("-- COMPATIBLE --\n");
             return LXiTOOLOP_COMPATIBLE;
         }
     }
 
-    printf("** DIFFERENT\n");
 	return LXiTOOLOP_DIFFERENT;
 }
 
@@ -157,20 +160,10 @@ LXtTagInfoDesc CTool::descInfo[] =
 	{LXsTOOL_PMODEL, "."},
 	{LXsTOOL_USETOOLOP, "."},
 	{LXsPMODEL_SELECTIONTYPES, LXsSELOP_TYPE_POLYGON},
+    {LXsPMODEL_NOTRANSFORM, "."},
 	{0}
 
 };
-
-//
-// We employ the simplest possible tool model -- default hauling. We indicate
-// that we want to haul one attribute, we name the attribute, and we implement
-// Initialize() which is what to do when the tool activates or re-activates.
-// In this case set the axis to the current value.
- //
-unsigned CTool::tmod_Flags()
-{
-    return LXfTMOD_I0_INPUT;
-}
 
 LxResult CTool::tmod_Enable(ILxUnknownID obj)
 {

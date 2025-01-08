@@ -26,17 +26,66 @@ using namespace OpenSubdiv;
 typedef Sdc::Options            Options;
 typedef Far::TopologyDescriptor Descriptor;
 
+
+//
+// Vertex container implementation.
+//
+struct Point3 {
+
+    // Minimal required interface ----------------------
+    Point3() { }
+
+    void Clear( void * =0 ) {
+        _point[0] = _point[1] = _point[2] = 0.0f;
+    }
+
+    void AddWithWeight(Point3 const & src, float weight) {
+        _point[0] += weight*src._point[0];
+        _point[1] += weight*src._point[1];
+        _point[2] += weight*src._point[2];
+    }
+
+    // Public interface ------------------------------------
+    void SetPoint(float x, float y, float z) {
+        _point[0] = x;
+        _point[1] = y;
+        _point[2] = z;
+    }
+
+    const float * GetPoint() const {
+        return _point;
+    }
+
+private:
+    float _point[3];
+};
+struct FVarValue {
+
+    // Minimal required interface ----------------------
+    void Clear() {
+        _value[0] = _value[1] = 0.0f;
+    }
+
+    void AddWithWeight(FVarValue const & src, float weight) {
+        _value[0] += weight * src._value[0];
+        _value[1] += weight * src._value[1];
+    }
+
+    // Vertex map value
+    float _value[2];
+};
+
 class CSubdivide
 {
 public:
     CSubdivide()
     {
-        m_level    = 3;
+        m_level    = 2;
         m_scheme   = Sdc::SCHEME_CATMARK;
         m_boundary = Sdc::Options::VTX_BOUNDARY_NONE;
-        m_fvar     = Sdc::Options::FVAR_LINEAR_ALL;
-        m_crease   = Sdc::Options::CREASE_UNIFORM;
-        m_triangle = Sdc::Options::TRI_SUB_CATMARK;
+        m_fvar     = Sdc::Options::FVAR_LINEAR_NONE;
+        m_crease   = Sdc::Options::CREASE_CHAIKIN;
+        m_triangle = Sdc::Options::TRI_SUB_SMOOTH;
         m_refiner  = nullptr;
         m_pick     = 0;
     }
@@ -71,7 +120,7 @@ private:
     bool SetupCages();
     bool CreateSubdivPoints(std::vector<LXtPointID>& points);
     bool CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
-    bool CreateSubdivUVs(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
+    bool CreateSubdivFVars(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
     int  GetCagePolygon(int face, CLxUser_Polygon& upoly);
     void RemoveSourcePolygons();
     void RemoveSourcePoints();
@@ -92,7 +141,7 @@ private:
     MeshBinning               m_mbin;
     LXtMarkMode               m_pick;
 
-    std::vector<float> m_position;  // subdivided positions
-    std::vector<std::vector<float>> m_uvs;  // subdivided uv value array
-    std::vector<LXtPointID> m_new_points;  // subdivided new points
+    std::vector<Point3>                 m_subdiv_positions; // subdivided vertex positions
+    std::vector<std::vector<FVarValue>> m_subdiv_fvars;     // subdivided vmap value array
+    std::vector<LXtPointID>             m_subdiv_points;    // subdivided new points
 };

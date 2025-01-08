@@ -1,5 +1,5 @@
 //
-// The command version of subdivision using OpenSubdiv.
+// The command version of polygon subdivision using OpenSubdiv.
 //
 #include "command.hpp"
 
@@ -11,22 +11,22 @@ void CCommand::basic_Execute(unsigned int /*flags*/)
     CSubdivide csub;
     int ival;
 
-    attr_GetInt(ARGi_COMMAND_LEVEL, &ival);
+    attr_GetInt(ARGi_LEVEL, &ival);
     csub.SetLevel(ival);
 
-    attr_GetInt(ARGi_COMMAND_SCHEME, &ival);
+    attr_GetInt(ARGi_SCHEME, &ival);
     csub.SetScheme(ival);
 
-    attr_GetInt(ARGi_COMMAND_BOUNDARY, &ival);
+    attr_GetInt(ARGi_BOUNDARY, &ival);
     csub.SetBoundary(ival);
 
-    attr_GetInt(ARGi_COMMAND_FVAR, &ival);
+    attr_GetInt(ARGi_FVAR, &ival);
     csub.SetFVar(ival);
 
-    attr_GetInt(ARGi_COMMAND_CREASE, &ival);
+    attr_GetInt(ARGi_CREASE, &ival);
     csub.SetCrease(ival);
 
-    attr_GetInt(ARGi_COMMAND_TRIANGLE, &ival);
+    attr_GetInt(ARGi_TRIANGLE, &ival);
     csub.SetTriangle(ival);
 
     check(lyr_S.BeginScan(LXf_LAYERSCAN_EDIT_POLYS, scan));
@@ -80,29 +80,29 @@ bool CCommand::basic_Enable(CLxUser_Message& /*msg*/)
 
 LxResult CCommand::cmd_DialogInit(void)
 {
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_LEVEL)) == false)
+    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_LEVEL)) == false)
     {
-        attr_SetInt(ARGi_COMMAND_LEVEL, 1);
+        attr_SetInt(ARGi_LEVEL, 1);
     }
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_SCHEME)) == false)
+    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_SCHEME)) == false)
     {
-        attr_SetInt(ARGi_COMMAND_SCHEME, 1);
+        attr_SetInt(ARGi_SCHEME, 1);
     }
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_BOUNDARY)) == false)
+    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_BOUNDARY)) == false)
     {
-        attr_SetInt(ARGi_COMMAND_BOUNDARY, 0);
+        attr_SetInt(ARGi_BOUNDARY, 0);
     }
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_FVAR)) == false)
+    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_FVAR)) == false)
     {
-        attr_SetInt(ARGi_COMMAND_FVAR, 5);
+        attr_SetInt(ARGi_FVAR, 0);
     }
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_CREASE)) == false)
+    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_CREASE)) == false)
     {
-        attr_SetInt(ARGi_COMMAND_CREASE, 0);
+        attr_SetInt(ARGi_CREASE, 1);
     }
-    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_COMMAND_TRIANGLE)) == false)
+    if (LXxCMDARG_ISSET(dyna_GetFlags(ARGi_TRIANGLE)) == false)
     {
-        attr_SetInt(ARGi_COMMAND_TRIANGLE, 1);
+        attr_SetInt(ARGi_TRIANGLE, 1);
     }
 
     return LXe_OK;

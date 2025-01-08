@@ -4,8 +4,8 @@ project(subdivide VERSION 1.0)
 include(FetchContent)
 
 # set your directory pathes below
-set(LXSDK_PATH "../LXSDK-000025")
-set(OPENSUBDIV_PATH "/Users/taz/local")
+#set(LXSDK_PATH "../LXSDK-000025")
+#set(OPENSUBDIV_PATH "../OpenSubdiv-3.6.0")
 
 if (NOT LXSDK_PATH)
     FetchContent_Declare( 
@@ -51,7 +51,6 @@ add_library(subdivide
     SHARED
         "source/command.cpp"
         "source/tool.cpp"
-        "source/meshop.cpp"
         "source/initialize.cpp"
         "source/subdivide.cpp"
 )
@@ -99,16 +98,28 @@ target_link_libraries(subdivide
     PRIVATE
         osdCPU osdGPU
         OpenGL::GL
-#        GLEW::glew_s
 )
 
 # Install plugins and configs into kit directry
 if (NOT CMAKE_INSTALL_PREFIX)
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/OpenSubdiv_Kit")
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/OpenSubdivKit")
 endif()
 install(
     FILES
         "index.cfg"
+        "index.html"
+    DESTINATION
+        ${CMAKE_INSTALL_PREFIX}
+)
+install(
+    DIRECTORY
+        "Icons"
+    DESTINATION
+        ${CMAKE_INSTALL_PREFIX}
+)
+install(
+    DIRECTORY
+        "images"
     DESTINATION
         ${CMAKE_INSTALL_PREFIX}
 )

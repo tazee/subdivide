@@ -5,32 +5,14 @@
 #pragma once
 
 #include <lxsdk/lxu_attributes.hpp>
-#include <lxsdk/lxu_math.hpp>
-#include <lxsdk/lxu_matrix.hpp>
-#include <lxsdk/lxu_modifier.hpp>
-#include <lxsdk/lxu_package.hpp>
 #include <lxsdk/lxu_select.hpp>
-#include <lxsdk/lxu_vector.hpp>
 
-#include <lxsdk/lx_mesh.hpp>
-#include <lxsdk/lx_package.hpp>
-#include <lxsdk/lx_particle.hpp>
 #include <lxsdk/lx_plugin.hpp>
-#include <lxsdk/lx_pmodel.hpp>
 #include <lxsdk/lx_seltypes.hpp>
-#include <lxsdk/lx_server.hpp>
-#include <lxsdk/lx_vector.hpp>
-#include <lxsdk/lx_vertex.hpp>
-#include <lxsdk/lx_visitor.hpp>
-#include <lxsdk/lx_wrap.hpp>
 #include <lxsdk/lx_tool.hpp>
 #include <lxsdk/lx_toolui.hpp>
 #include <lxsdk/lx_layer.hpp>
-#include <lxsdk/lx_log.hpp>
-
-#include <lxsdk/lxw_mesh.hpp>
-#include <lxsdk/lxw_pmodel.hpp>
-#include <lxsdk/lxvalue.h>
+#include <lxsdk/lx_vector.hpp>
 
 #include "subdivide.hpp"
 

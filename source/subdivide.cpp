@@ -146,7 +146,6 @@ bool CSubdivide::Update()
         return false;
 
     LXtVector       pos;
-    LXtPointID      pnt;
     CLxUser_Point   upoint;
     m_edit_mesh.GetPoints(upoint);
 
@@ -478,7 +477,7 @@ Far::TopologyRefiner* CSubdivide::CreateTopologyRefiner()
         if (m_scheme == Sdc::SCHEME_LOOP)
         {
             upoly.GenerateTriangles(&ntri);
-            for (auto j = 0; j < ntri; j++)
+            for (auto j = 0u; j < ntri; j++)
             {
                 upoly.TriangleByIndex(j, &point1, &point2, &point3);
                 vertsPerFace[n++] = 3;

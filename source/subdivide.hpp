@@ -5,18 +5,16 @@
 
 #include <lxsdk/lx_log.hpp>
 #include <lxsdk/lx_mesh.hpp>
-#include <lxsdk/lx_value.hpp>
 #include <lxsdk/lxu_math.hpp>
 
 #include <map>
 #include <vector>
 #include <memory>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 #include <opensubdiv/far/primvarRefiner.h>
 #include <opensubdiv/far/topologyDescriptor.h>
-#include <opensubdiv/osd/cpuEvaluator.h>
-#include <opensubdiv/osd/cpuGLVertexBuffer.h>
-#include <opensubdiv/osd/glMesh.h>
 #include <opensubdiv/sdc/options.h>
 
 #include "visitors.hpp"
@@ -108,7 +106,7 @@ public:
     void SetTriangle(int triangle);
 
     // OpenSubdiv options
-    unsigned m_level;
+    int m_level;
 
     Sdc::SchemeType m_scheme;
     Sdc::Options::VtxBoundaryInterpolation m_boundary;

@@ -1,7 +1,8 @@
 # OpenSubdiv Kit for Modo plug-in
-This is a Modo Plug-in kit to subdivide face polygons using OpenSubdiv library. This subdivion kit is useful when you want to subdivide face polygons by industry standard OpenSubdiv methods instead of standard subdivide command and mesh modifier in Modo.
+This is a Modo Plug-in kit to subdivide face polygons using OpenSubdiv library. This subdivion kit is useful when you want to subdivide face polygons by industry standard OpenSubdiv methods instead of standard subdivide command and mesh modifier in Modo.<br>
 
-This kit contains a command plugin and a procedural mesh operator for macOS, Windows and Linux.
+- This kit contains a command plugin and a procedural mesh operator for macOS, Windows and Linux.<br>
+- The OpenSubdiv mesh operator exposes subdivided polygons, edges and vertices to **Select By Previous Operation**.<br>
 
 This kit is implemented using [OpenSubdiv](https://github.com/PixarAnimationStudios/OpenSubdiv) libraray.
 

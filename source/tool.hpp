@@ -13,6 +13,7 @@
 #include <lxsdk/lx_toolui.hpp>
 #include <lxsdk/lx_layer.hpp>
 #include <lxsdk/lx_vector.hpp>
+#include <lxsdk/lx_pmodel.hpp>
 
 #include "subdivide.hpp"
 
@@ -55,7 +56,7 @@ struct CIncremental
 //
 // The Tool Operation is evaluated by the procedural modeling system.
 //
-class CToolOp : public CLxImpl_ToolOperation
+class CToolOp : public CLxImpl_ToolOperation, public CLxImpl_MeshElementGroup
 {
 	public:
         ~CToolOp ()
@@ -67,8 +68,17 @@ class CToolOp : public CLxImpl_ToolOperation
             }
         }
     
+        // ToolOperation Interface
 		LxResult    top_Evaluate(ILxUnknownID vts)  LXx_OVERRIDE;
 		LxResult    top_ReEvaluate(ILxUnknownID vts)  LXx_OVERRIDE;
+    
+        // MeshElementGroup Interface
+        LxResult	eltgrp_GroupCount	(unsigned int *count)				LXx_OVERRIDE;
+        LxResult	eltgrp_GroupName	(unsigned int index, const char **name)		LXx_OVERRIDE;
+        LxResult	eltgrp_GroupUserName	(unsigned int index, const char **username)	LXx_OVERRIDE;
+        LxResult	eltgrp_TestPolygon	(unsigned int index, LXtPolygonID polygon)	LXx_OVERRIDE;
+        LxResult    eltgrp_TestEdge(unsigned int index, LXtEdgeID edge)	LXx_OVERRIDE;
+        LxResult    eltgrp_TestPoint(unsigned int index, LXtPointID point)	LXx_OVERRIDE;
 
         CLxUser_Subject2Packet subject;
 
@@ -131,6 +141,7 @@ public:
 
         srv = new CLxPolymorph<CToolOp>;
         srv->AddInterface(new CLxIfc_ToolOperation<CToolOp>);
+	    srv->AddInterface(new CLxIfc_MeshElementGroup<CToolOp>);
         lx::AddSpawner(SRVNAME_TOOLOP, srv);
     }
 

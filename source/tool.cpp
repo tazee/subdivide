@@ -233,7 +233,6 @@ LxResult CToolOp::top_Evaluate(ILxUnknownID vts)
 {
     CLxUser_VectorStack vec(vts);
 
-    printf("top_Evaluate\n");
     //
     // Start the scan in edit mode.
     //
@@ -286,8 +285,6 @@ LxResult CToolOp::top_Evaluate(ILxUnknownID vts)
 //
 LxResult CToolOp::top_ReEvaluate(ILxUnknownID vts)
 {
-    printf("top_ReEvaluate increments = %zu\n", m_incrementals.size());
-    printf("-- boundary %d fvar %d triangle %d crease %d\n", m_boundary, m_fvar, m_triangle, m_crease);
     for (auto& inc : m_incrementals)
     {
         inc.m_csub->SetBoundary(m_boundary);
@@ -302,3 +299,58 @@ LxResult CToolOp::top_ReEvaluate(ILxUnknownID vts)
     return LXe_OK;
 }
 
+
+
+LxResult CToolOp::eltgrp_GroupCount(unsigned int* count)
+{
+    count[0] = 3;
+    return LXe_OK;
+}
+
+LxResult CToolOp::eltgrp_GroupName(unsigned int index, const char** name)
+{
+    const static char* names[] = {"newPoly",
+                            "newEdge",
+                            "newVerx"};
+    name[0] = names[index];
+    return LXe_OK;
+}
+
+LxResult CToolOp::eltgrp_GroupUserName(unsigned int index, const char** username)
+{
+    const static char* names[] = {"@tool.osd@newPoly@0",
+                            "@tool.osd@newEdge@",
+                            "@tool.osd@newVerx@"};
+    username[0] = names[index];
+    return LXe_OK;
+}
+
+LxResult CToolOp::eltgrp_TestPolygon(unsigned int index, LXtPolygonID polygon)
+{
+    for (auto& inc : m_incrementals)
+    {
+        if (inc.m_csub->TestPolygon(polygon))
+            return LXe_TRUE;
+    }
+    return LXe_FALSE;
+}
+
+LxResult CToolOp::eltgrp_TestEdge(unsigned int index, LXtEdgeID edge)
+{
+    for (auto& inc : m_incrementals)
+    {
+        if (inc.m_csub->TestEdge(edge))
+            return LXe_TRUE;
+    }
+    return LXe_FALSE;
+}
+
+LxResult CToolOp::eltgrp_TestPoint(unsigned int index, LXtPointID point)
+{
+    for (auto& inc : m_incrementals)
+    {
+        if (inc.m_csub->TestPoint(point))
+            return LXe_TRUE;
+    }
+    return LXe_FALSE;
+}

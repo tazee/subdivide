@@ -38,9 +38,9 @@ struct Point3 {
     }
 
     void AddWithWeight(Point3 const & src, float weight) {
-        _point[0] += weight*src._point[0];
-        _point[1] += weight*src._point[1];
-        _point[2] += weight*src._point[2];
+        _point[0] += weight * src._point[0];
+        _point[1] += weight * src._point[1];
+        _point[2] += weight * src._point[2];
     }
 
     // Public interface ------------------------------------
@@ -58,19 +58,26 @@ private:
     float _point[3];
 };
 struct FVarValue {
-
     // Minimal required interface ----------------------
     void Clear() {
-        _value[0] = _value[1] = 0.0f;
+        for (unsigned i = 0; i < _value.size(); i++)
+            _value[i] = 0.0f;
     }
 
     void AddWithWeight(FVarValue const & src, float weight) {
-        _value[0] += weight * src._value[0];
-        _value[1] += weight * src._value[1];
+        _value.resize(src._value.size());
+        for (unsigned i = 0; i < src._value.size(); i++)
+            _value[i] += weight * src._value[i];
+    }
+
+    void SetValue(const float* value, unsigned size) {
+        _value.resize(size);
+        for (unsigned i = 0; i < size; i++)
+            _value[i] = value[i];
     }
 
     // Vertex map value
-    float _value[2];
+    std::vector<float> _value;
 };
 
 class CSubdivide
@@ -105,6 +112,10 @@ public:
     void SetCrease (int crease);
     void SetTriangle(int triangle);
 
+    bool TestPolygon(LXtPolygonID polID);
+    bool TestEdge(LXtEdgeID edgeID);
+    bool TestPoint(LXtPointID pntID);
+
     // OpenSubdiv options
     int m_level;
 
@@ -119,6 +130,7 @@ private:
     bool CreateSubdivPoints(std::vector<LXtPointID>& points);
     bool CreateSubdivPolygons(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
     bool CreateSubdivFVars(std::vector<LXtPointID>& points, std::vector<LXtPolygonID>& polygons);
+    bool CreateSubdivMorphs(std::vector<LXtPointID>& points);
     int  GetCagePolygon(int face, CLxUser_Polygon& upoly);
     void RemoveSourcePolygons();
     void RemoveSourcePoints();
@@ -142,4 +154,5 @@ private:
     std::vector<Point3>                 m_subdiv_positions; // subdivided vertex positions
     std::vector<std::vector<FVarValue>> m_subdiv_fvars;     // subdivided vmap value array
     std::vector<LXtPointID>             m_subdiv_points;    // subdivided new points
+    std::vector<LXtPolygonID>           m_subdiv_polygons;  // subdivided new polygons
 };

@@ -147,7 +147,7 @@ public:
 typedef struct st_FVarDisco
 {
     unsigned int index;
-    float        values[4];
+    std::vector<float> values;
 } FVarDisco;
 
 typedef struct st_FVarVertex
@@ -159,6 +159,8 @@ typedef struct
 {
     LXtMeshMapID       m_mapID;
     std::string        name;
+    LXtID4             type;
+    unsigned int       dim;
     std::vector<int>   indices;
     std::vector<float> values;
 } FaceVarying;
@@ -178,7 +180,7 @@ public:
     {
         m_count = 0;
         m_mesh.GetMaps(m_maps);
-        m_maps.FilterByType(LXi_VMAP_TEXTUREUV);
+//        m_maps.FilterByType(LXi_VMAP_TEXTUREUV);
         m_triangle = false;
     }
 
@@ -214,14 +216,17 @@ public:
         CLxUser_Point           upoint;
         CLxUser_Polygon         upoly;
         LXtPointID              point;
-        float                   value[4];
+        std::vector<float>      value;
         LxResult                res;
 
         fvarTable.resize(mesh.NPoints());
 
         umap.Dimension(&dim);
-        if (dim > 4)
+        if (!dim)
             return false;
+
+        value.resize(dim);
+        disco.values.resize(dim);
 
         mesh.GetPoints(upoint);
         mesh.GetPolygons(upoly);
@@ -239,7 +244,7 @@ public:
                     upoly.TriangleByIndex(j, &pnt3[0], &pnt3[1], &pnt3[2]);
                     for (auto jj = 0; jj < 3; jj++)
                     {
-                        res = upoly.MapEvaluate(umap.ID(), pnt3[jj], value);
+                        res = upoly.MapEvaluate(umap.ID(), pnt3[jj], &value[0]);
                         if (res != LXe_OK)
                         {
                             indices.push_back(0);
@@ -247,7 +252,7 @@ public:
                         }
                         upoint.Select(pnt3[jj]);
                         upoint.Index(&ii);
-                        if (LookupDisco(fvarTable[ii].discos, dim, value, &index))
+                        if (LookupDisco(fvarTable[ii].discos, dim, &value[0], &index))
                             indices.push_back(index);
                         else
                         {
@@ -268,7 +273,7 @@ public:
                 for (unsigned int j = 0; j < count; j++)
                 {
                     upoly.VertexByIndex(j, &point);
-                    res = upoly.MapEvaluate(umap.ID(), point, value);
+                    res = upoly.MapEvaluate(umap.ID(), point, &value[0]);
                     if (res != LXe_OK)
                     {
                         indices.push_back(0);
@@ -276,7 +281,7 @@ public:
                     }
                     upoint.Select(point);
                     upoint.Index(&ii);
-                    if (LookupDisco(fvarTable[ii].discos, dim, value, &index))
+                    if (LookupDisco(fvarTable[ii].discos, dim, &value[0], &index))
                         indices.push_back(index);
                     else
                     {
@@ -298,6 +303,12 @@ public:
     LxResult Evaluate() override
     {
         FaceVarying faceVary;
+    
+        if (m_maps.IsContinuous() == LXe_TRUE)
+            return LXe_OK;
+    
+        if (m_maps.IsEdgeMap() == LXe_TRUE)
+            return LXe_OK;
 
         if (CreateFaceVaryTable(m_mesh, m_maps, m_polygons, faceVary.indices, faceVary.values))
         {
@@ -305,6 +316,8 @@ public:
             const char* name;
             m_maps.Name(&name);
             faceVary.name = name;
+            m_maps.Type(&faceVary.type);
+            m_maps.Dimension(&faceVary.dim);
             m_fvarArray.push_back(faceVary);
         }
         return LXe_OK;
@@ -475,6 +488,30 @@ public:
             m_points.push_back(m_point.ID());
         }
 
+        return LXe_OK;
+    }
+};
+
+class MorphMapVisitor : public CLxImpl_AbstractVisitor
+{
+public:
+    CLxUser_MeshMap            m_maps;
+    std::vector<LXtMeshMapID>& m_morph_maps;
+
+    MorphMapVisitor(CLxUser_Mesh& mesh, std::vector<LXtMeshMapID>& morph_maps) : m_morph_maps(morph_maps)
+    {
+        mesh.GetMaps(m_maps);
+        m_morph_maps.clear();
+    }
+
+    LxResult Evaluate() override
+    {
+        LXtID4 type;
+        m_maps.Type(&type);
+        if ((type == LXi_VMAP_MORPH) || (type == LXi_VMAP_SPOT))
+        {
+            m_morph_maps.push_back(m_maps.ID());
+        }
         return LXe_OK;
     }
 };

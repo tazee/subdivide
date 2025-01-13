@@ -9,7 +9,6 @@
 //
 bool CSubdivide::Build (CLxUser_Mesh& mesh, LXtMarkMode pick)
 {
-    printf("CSubdivide::Build\n");
 	m_mesh.set (mesh);
     m_pick = pick;
 
@@ -50,7 +49,6 @@ void CSubdivide::Clear ()
 //
 bool CSubdivide::Refine ()
 {
-    printf("CSubdivide::Refine mesh (%d)\n", m_mesh.test ());
 	if (!m_mesh.test ())
 		return false;
 
@@ -83,10 +81,10 @@ bool CSubdivide::Refine ()
     for (auto i = 0u; i < m_fvarArray.size(); i++)
     {
         m_subdiv_fvars[i].resize(m_refiner->GetNumFVarValuesTotal(i));
-        for (auto j = 0u; j < m_fvarArray[i].values.size() / 2; j++)
+        auto nvalues = m_fvarArray[i].values.size() / m_fvarArray[i].dim;
+        for (auto j = 0u; j < nvalues; j++)
         {
-            m_subdiv_fvars[i][j]._value[0] = m_fvarArray[i].values[j * 2];
-            m_subdiv_fvars[i][j]._value[1] = m_fvarArray[i].values[j * 2 + 1];
+            m_subdiv_fvars[i][j].SetValue(&m_fvarArray[i].values[j * m_fvarArray[i].dim], m_fvarArray[i].dim);
         }
     }
 
@@ -119,17 +117,18 @@ bool CSubdivide::Refine ()
 //
 bool CSubdivide::Apply (CLxUser_Mesh& edit_mesh)
 {
-    printf("CSubdivide::Apply\n");
     if (!m_polygons.size() || !m_points.size())
         return false;
 
     m_edit_mesh.set(edit_mesh);
 
-    std::vector<LXtPolygonID> polygons;
+    m_subdiv_points.clear();
+    m_subdiv_polygons.clear();
 
     CreateSubdivPoints(m_subdiv_points);
-    CreateSubdivPolygons(m_subdiv_points, polygons);
-    CreateSubdivFVars(m_subdiv_points, polygons);
+    CreateSubdivPolygons(m_subdiv_points, m_subdiv_polygons);
+    CreateSubdivFVars(m_subdiv_points, m_subdiv_polygons);
+    CreateSubdivMorphs(m_subdiv_points);
     RemoveSourcePolygons();
     RemoveSourcePoints();
 
@@ -141,7 +140,6 @@ bool CSubdivide::Apply (CLxUser_Mesh& edit_mesh)
 //
 bool CSubdivide::Update()
 {
-    printf("CSubdivide::Update = %zu\n", m_subdiv_positions.size());
     if (!m_polygons.size() || !m_points.size())
         return false;
 
@@ -232,7 +230,6 @@ bool CSubdivide::CreateSubdivFVars(std::vector<LXtPointID>& points, std::vector<
     Far::TopologyLevel const& refLastLevel = m_refiner->GetLevel(m_level);
     auto numFaces = refLastLevel.GetNumFaces();
     LXtPointID       pnt;
-    float            value[2];
 
     CLxUser_Polygon  upoly;
     m_edit_mesh.GetPolygons(upoly);
@@ -242,7 +239,7 @@ bool CSubdivide::CreateSubdivFVars(std::vector<LXtPointID>& points, std::vector<
 
     for (auto iv = 0u; iv < m_fvarArray.size(); iv++)
     {
-        umap.SelectByName (LXi_VMAP_TEXTUREUV, m_fvarArray[iv].name.c_str());
+        umap.SelectByName (m_fvarArray[iv].type, m_fvarArray[iv].name.c_str());
         LXtMeshMapID     mapID = umap.ID();
         int offset = 0;
         for (auto level = 0; level < m_level; level++) {
@@ -259,12 +256,91 @@ bool CSubdivide::CreateSubdivFVars(std::vector<LXtPointID>& points, std::vector<
                 pnt = points[j];
                 auto k = static_cast<int>(fuvs[i]);
                 assert(pnt != nullptr);
-                value[0] = m_subdiv_fvars[iv][k + offset]._value[0];
-                value[1] = m_subdiv_fvars[iv][k + offset]._value[1];
+                float* value = &m_subdiv_fvars[iv][k + offset]._value[0];
 				upoly.SetMapValue (pnt, mapID, value);
             }
         }
     }
+    return true;
+}
+
+//
+// Refine morphs from the source mesh.
+//
+bool CSubdivide::CreateSubdivMorphs(std::vector<LXtPointID>& points)
+{
+    std::vector<LXtMeshMapID> morph_maps;
+    MorphMapVisitor visMap(m_mesh, morph_maps);
+    visMap.m_maps.Enum(&visMap);
+
+    CLxUser_MeshMap umap;
+    m_edit_mesh.GetMaps(umap);
+
+    std::vector<Point3> subdiv_positions;
+    subdiv_positions.resize(m_refiner->GetNumVerticesTotal());
+
+    CLxUser_Point upoint;
+    m_mesh.GetPoints(upoint);
+
+    LXtFVector    pos, delta;
+
+    for (auto mapID : morph_maps)
+    {
+        umap.Select(mapID);
+        LXtID4 type;
+        umap.Type(&type);
+
+        // Setup the cage positions with morphs.
+        for (auto i = 0u; i < m_points.size(); i++) {
+            upoint.Select (m_points[i]);
+            if (type == LXi_VMAP_MORPH)
+            {
+                upoint.Pos (pos);
+                upoint.MapEvaluate(mapID, delta);
+                LXx_VADD(pos, delta);
+            }
+            else
+            {
+                upoint.MapEvaluate(mapID, pos);
+            }
+            subdiv_positions[i].SetPoint (pos[0], pos[1], pos[2]);
+        }
+
+        // Interpolate vertex primvar data
+        Far::PrimvarRefiner primvarRefiner(*m_refiner);
+
+        Point3 * src = &subdiv_positions[0];
+        for (auto level = 1; level <= m_level; level++) {
+            Point3 * dst = src + m_refiner->GetLevel(level-1).GetNumVertices();
+            primvarRefiner.Interpolate(level, src, dst);
+            src = dst;
+        }
+
+        // Set new morphed positions to the edit mesh.
+        CLxUser_Point upoint;
+        m_edit_mesh.GetPoints(upoint);
+
+        const char* name;
+        umap.Name(&name);
+        for (auto i = 0u; i < points.size(); i++)
+        {
+            upoint.Select(points[i]);
+            const float * f = src[i].GetPoint();
+            if (type == LXi_VMAP_MORPH)
+            {
+                upoint.Pos(pos);
+                LXx_VSUB3(delta, f, pos);
+                if (LXx_VEQS(delta, 0.0f))
+                    continue;
+                upoint.SetMapValue(mapID, delta);
+            }
+            else
+            {
+                upoint.SetMapValue(mapID, f);
+            }
+        }
+    }
+
     return true;
 }
 
@@ -332,6 +408,7 @@ bool CSubdivide::SetupCages()
     mark.m_mask  = mS.ClearMode(LXsMARK_USER_1);
     mark.m_point.Enum(&mark);
     mark.m_clear = false;
+    mark.m_pick  = mS.SetMode(LXsMARK_SELECT);
     mark.m_mask  = mS.SetMode(LXsMARK_USER_1);
     mark.m_poly.Enum(&mark);
 
@@ -530,7 +607,7 @@ Far::TopologyRefiner* CSubdivide::CreateTopologyRefiner()
     }
 
     //
-    // UV maps
+    // Discountinuous vertex maps
     //
     PolygonFVarVisitor visMap(m_mesh, m_fvarArray, m_polygons);
     visMap.m_triangle = (m_scheme == Sdc::SCHEME_LOOP);
@@ -639,4 +716,36 @@ void CSubdivide::SetTriangle(int triangle)
         delete m_refiner;
         m_refiner = nullptr;
     }
+}
+
+bool CSubdivide::TestPolygon(LXtPolygonID polID)
+{
+    auto result = std::find(m_subdiv_polygons.begin(), m_subdiv_polygons.end(), polID);
+    if (result == m_subdiv_polygons.end())
+        return false;
+    return true;
+}
+
+bool CSubdivide::TestEdge(LXtEdgeID edgeID)
+{
+    CLxUser_Edge uedge;
+    LXtPointID A, B;
+    m_edit_mesh.GetEdges(uedge);
+    uedge.Select(edgeID);
+    uedge.Endpoints(&A, &B);
+    auto resultA = std::find(m_subdiv_points.begin(), m_subdiv_points.end(), A);
+    if (resultA == m_subdiv_points.end())
+        return false;
+    auto resultB = std::find(m_subdiv_points.begin(), m_subdiv_points.end(), B);
+    if (resultB == m_subdiv_points.end())
+        return false;
+    return true;
+}
+
+bool CSubdivide::TestPoint(LXtPointID pntID)
+{
+    auto result = std::find(m_subdiv_points.begin(), m_subdiv_points.end(), pntID);
+    if (result == m_subdiv_points.end())
+        return false;
+    return true;
 }

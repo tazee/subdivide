@@ -5,7 +5,7 @@ include(FetchContent)
 
 # set your directory pathes below
 #set(LXSDK_PATH "../LXSDK-000025")
-#set(OPENSUBDIV_PATH "../OpenSubdiv-3.6.0")
+#set(OPENSUBDIV_PATH "/Users/taz/local")
 
 if (NOT LXSDK_PATH)
     FetchContent_Declare( 
@@ -95,8 +95,11 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(subdivide
     PUBLIC
 	    lxsdk
+        $<$<PLATFORM_ID:Darwin>:${OPENSUBDIV_PATH}/lib/libosdCPU.a>
+        $<$<PLATFORM_ID:Darwin>:${OPENSUBDIV_PATH}/lib/libosdGPU.a>
     PRIVATE
-        osdCPU osdGPU
+        $<$<PLATFORM_ID:Linux,Windows>:osdCPU>
+        $<$<PLATFORM_ID:Linux,Windows>:osdGPU>
         OpenGL::GL
 )
 
